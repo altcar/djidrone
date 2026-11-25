@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DJI Drone Archive</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">DJI · FLIGHT ARCHIVE</div>
+      <h1>Drone videos &amp; 360° panoramas</h1>
+      <p class="sub">Original footage from <code>DCIM/DJI_001</code>, preserved on Hugging Face and browsable here.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <nav class="tabbar">
+    <button class="tab active" data-tab="videos">🎬 Videos</button>
+    <button class="tab" data-tab="pano">🌐 3D Panoramas</button>
+    <a class="tab external" href="https://huggingface.co/datasets/shalevlau/djidrone" target="_blank" rel="noopener">HF dataset ↗</a>
+  </nav>
+</header>
+
+<main>
+<section id="videos" class="panel active">
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search by filename or date (e.g. 20250625)" autocomplete="off">
+    <span id="count" class="muted"></span>
+  </div>
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty hidden">No videos match that search.</div>
+</section>
+
+<section id="pano" class="panel">
+  <div class="pano-head">
+    <div>
+      <h2>Draggable 3D scenes</h2>
+      <p class="muted" id="pano-help">Drag to look around · scroll to zoom · arrow keys work too.</p>
+    </div>
+    <div class="pano-actions">
+      <button id="reset-view" class="btn">Reset view</button>
+      <button id="fullscreen" class="btn">Fullscreen</button>
+    </div>
+  </div>
+  <div id="pano-tabs" class="pano-tabs"></div>
+  <div id="viewer" class="viewer">
+    <div id="loading" class="loading">Loading panorama…</div>
+    <canvas id="pano-canvas"></canvas>
+    <div class="viewer-label" id="pano-label"></div>
+  </div>
+  <p class="muted fineprint" id="pano-source"></p>
+</section>
+</main>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Video player">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><strong id="modal-title"></strong><span class="muted" id="modal-meta"></span></div>
+      <button class="close" data-close aria-label="Close">✕</button>
+    </div>
+    <video id="player" controls playsinline preload="metadata"></video>
+    <div class="modal-foot">
+      <a id="modal-download" href="#" target="_blank" rel="noopener" class="btn">Open original on Hugging Face ↗</a>
+      <span class="muted fineprint">Video streams with HTTP range requests directly from the dataset.</span>
+    </div>
+  </div>
+</div>
+
+<footer>Built as a static site · media hosted on <a href="https://huggingface.co/datasets/shalevlau/djidrone">Hugging Face</a></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

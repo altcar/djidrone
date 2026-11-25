@@ -1,0 +1,76 @@
+[
+  {
+    "id": "001_0002",
+    "title": "001 / 0002",
+    "mode": "sphere",
+    "count": 25,
+    "file": "pano/001_0002.jpg",
+    "source": "dji srt/DJI_20250703163149_0002_D.JPG",
+    "sourceFolder": "PANORAMA/001_0002/",
+    "hfFolder": "https://huggingface.co/datasets/shalevlau/djidrone/tree/main/PANORAMA/001_0002",
+    "size": [
+      4096,
+      2048
+    ]
+  },
+  {
+    "id": "001_0005",
+    "title": "001 / 0005",
+    "mode": "frames",
+    "count": 17,
+    "file": null,
+    "frames": [
+      "pano/frames/001_0005/PANO_0001.JPG",
+      "pano/frames/001_0005/PANO_0002.JPG",
+      "pano/frames/001_0005/PANO_0003.JPG",
+      "pano/frames/001_0005/PANO_0004.JPG",
+      "pano/frames/001_0005/PANO_0005.JPG",
+      "pano/frames/001_0005/PANO_0006.JPG",
+      "pano/frames/001_0005/PANO_0007.JPG",
+      "pano/frames/001_0005/PANO_0008.JPG",
+      "pano/frames/001_0005/PANO_0009.JPG",
+      "pano/frames/001_0005/PANO_0010.JPG",
+      "pano/frames/001_0005/PANO_0011.JPG",
+      "pano/frames/001_0005/PANO_0012.JPG",
+      "pano/frames/001_0005/PANO_0013.JPG",
+      "pano/frames/001_0005/PANO_0014.JPG",
+      "pano/frames/001_0005/PANO_0015.JPG",
+      "pano/frames/001_0005/PANO_0016.JPG",
+      "pano/frames/001_0005/PANO_0017.JPG"
+    ],
+    "sourceFolder": "PANORAMA/001_0005/",
+    "hfFolder": "https://huggingface.co/datasets/shalevlau/djidrone/tree/main/PANORAMA/001_0005",
+    "size": [
+      1000,
+      750
+    ]
+  },
+  {
+    "id": "001_0081",
+    "title": "001 / 0081",
+    "mode": "sphere",
+    "count": 25,
+    "file": "pano/001_0081.jpg",
+    "source": "dji srt/DJI_20250630200816_0081_D.JPG",
+    "sourceFolder": "PANORAMA/001_0081/",
+    "hfFolder": "https://huggingface.co/datasets/shalevlau/djidrone/tree/main/PANORAMA/001_0081",
+    "size": [
+      4096,
+      2048
+    ]
+  },
+  {
+    "id": "001_0089",
+    "title": "001 / 0089",
+    "mode": "flat",
+    "count": 9,
+    "file": "pano/001_0089.jpg",
+    "source": "dji srt/DJI_20250630205243_0089_D.JPG",
+    "sourceFolder": "PANORAMA/001_0089/",
+    "hfFolder": "https://huggingface.co/datasets/shalevlau/djidrone/tree/main/PANORAMA/001_0089",
+    "size": [
+      3600,
+      2592
+    ]
+  }
+]
