@@ -56,6 +56,7 @@ body.gate-locked{overflow:hidden}
   <nav class="tabbar">
     <button class="tab active" data-tab="videos">🎬 Videos</button>
     <button class="tab" data-tab="pano">🌐 3D Panoramas</button>
+    <button class="tab" data-tab="info">ℹ️ Info</button>
     <a class="tab external" href="https://huggingface.co/datasets/shalevlau/djidrone" target="_blank" rel="noopener">HF dataset ↗</a>
   </nav>
 </header>
@@ -111,6 +112,191 @@ body.gate-locked{overflow:hidden}
     </div>
     <div id="puzzle-status" class="muted fineprint"></div>
     <div id="puzzle-grid" class="puzzle-grid"></div>
+  </div>
+</section>
+
+<section id="info" class="panel">
+  <div class="info-wrap">
+    <h2>Archive notes &amp; recovery information</h2>
+    <p class="muted">Everything needed to understand, recover, or modify this archive. No local files are required — the site runs entirely from GitHub Pages, Hugging Face, and the Cloudflare Worker.</p>
+
+    <h3>Hugging Face dataset <span class="muted fineprint">(gated)</span></h3>
+    <p><a href="https://huggingface.co/datasets/shalevlau/djidrone">https://huggingface.co/datasets/shalevlau/djidrone</a><br>
+    Access token: stored only as the Cloudflare Worker secret <code>HF_TOKEN</code> (never in this repo).</p>
+    <ul>
+      <li>321 files, all SHA-256 verified before local deletion.</li>
+      <li><code>uploaded/</code> — 119 original DJI 4K HEVC videos (~220 GB).</li>
+      <li><code>PANORAMA/</code> — 76 JPGs in 4 sets: 001_0002, 001_0005, 001_0081, 001_0089.</li>
+      <li><code>dji srt/</code> — 116 SRT flight logs + 7 auto-stitched JPG panoramas.</li>
+      <li><code>README.md</code>.</li>
+      <li>The original local <code>DJI_001</code> folder was deleted after verification; an offline hash record was kept at <code>deleted_files_after_verified_upload.json</code>.</li>
+    </ul>
+
+    <h3>GitHub site</h3>
+    <p><a href="https://altcar.github.io/djidrone">https://altcar.github.io/djidrone</a> · repo <code>altcar/djidrone</code></p>
+    <ul>
+      <li>Gallery of all videos with 4K / HEVC badges; streams the <em>original</em> HEVC files through the Cloudflare proxy — no transcoding.</li>
+      <li>Password gate: <code>rich</code> (PBKDF2-SHA256, 310,000 iterations, random salt). Only the salt + hash are stored in <code>auth.json</code>; the plaintext is never in the repo.</li>
+      <li>Access lasts for the tab session, or 12 hours on this device with “Remember this device”. The 🔒 Lock button re-locks immediately.</li>
+      <li>Panorama puzzle arrangements are stored in the viewer's browser (localStorage) — there is no gist or server.</li>
+      <li><code>tools/set_password.py</code> regenerates <code>auth.json</code> with a new salt and hash; commit and push that file to change the password. Source is reproduced below.</li>
+    </ul>
+
+    <h3>Cloudflare Worker <span class="muted fineprint">(no local bridge needed)</span></h3>
+    <p><a href="https://djidrone-video.hheylau.workers.dev/health">https://djidrone-video.hheylau.workers.dev</a></p>
+    <ul>
+      <li>Holds the HF token as a server-side secret (never exposed to browsers), enforces the gallery password before streaming, and forwards HTTP Range requests so seeking works. The dataset stays gated.</li>
+      <li>Workers cap PBKDF2 at 100,000 iterations, so the Worker uses a separate 100k-iteration hash of <code>rich</code> stored as <code>AUTH_JSON_TEXT</code>. <strong>If you change the gallery password, you must also update this Worker secret.</strong></li>
+      <li>Worker source: <code>worker/worker.js</code> (reproduced below). Deploy with <code>npx wrangler deploy</code> from the <code>worker/</code> directory.</li>
+    </ul>
+
+    <h3><code>tools/set_password.py</code></h3>
+    <pre class="codeblock">#!/usr/bin/env python3
+"""Set or change the gallery password (password-only gate, no username).
+
+Usage:
+  python3 tools/set_password.py                 # prompts twice (hidden)
+  GATE_PASSWORD='...' python3 tools/set_password.py   # non-interactive
+
+Only a random salt + PBKDF2-SHA256 hash is written to auth.json. The password
+itself is never stored.
+"""
+import getpass
+import hashlib
+import json
+import os
+import secrets
+from pathlib import Path
+
+ITERATIONS = 310_000
+OUT = Path(__file__).resolve().parent.parent / "auth.json"
+
+pw = os.environ.get("GATE_PASSWORD")
+if pw is None:
+    pw = getpass.getpass("New gallery password: ")
+    again = getpass.getpass("Repeat password: ")
+    if pw != again:
+        raise SystemExit("Passwords do not match.")
+if not pw:
+    raise SystemExit("Password must not be empty.")
+
+salt = secrets.token_bytes(16)
+digest = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt, ITERATIONS, dklen=32)
+OUT.write_text(json.dumps({
+    "salt": salt.hex(),
+    "hash": digest.hex(),
+    "iterations": ITERATIONS,
+    "algorithm": "PBKDF2-SHA256",
+}, indent=2) + "\\n")
+print(f"Updated {OUT} (salt + hash only; password not stored).")</pre>
+
+    <h3><code>worker/worker.js</code></h3>
+    <pre class="codeblock">/* Private video proxy for the gated djidrone HF dataset.
+   - HF token is a Worker secret: never sent to the browser.
+   - Requests are gated by the gallery password (PBKDF2 hash verified with
+     Web Crypto-equivalent crypto.subtle in Workers).
+   - Forwards Range requests so &lt;video&gt; can seek without downloading 4K files.
+   - Only paths under uploaded/ and playback/ are allowed. */
+
+const ALLOWED = /^(uploaded|playback)\/[^?]+\.(mp4|mov|webm)$/i;
+
+function json(body, status = 200, extra = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { &quot;content-type&quot;: &quot;application/json&quot;, &quot;access-control-allow-origin&quot;: &quot;*&quot;, ...extra },
+  });
+}
+
+async function verifyPassword(request, env, url) {
+  const auth = await env.AUTH.get(&quot;auth.json&quot;);
+  if (!auth) return { ok: false, status: 500, error: &quot;auth config missing&quot; };
+
+  let password = &quot;&quot;;
+  const header = request.headers.get(&quot;Authorization&quot;) || &quot;&quot;;
+  if (header.startsWith(&quot;Bearer &quot;)) {
+    try { password = atob(header.slice(7)); } catch (e) { /* fall through to query */ }
+  }
+  if (!password) {
+    // &lt;video&gt; elements cannot send custom headers; the unlocked gallery passes
+    // the password as a query parameter to this same-origin-protected proxy.
+    password = url.searchParams.get(&quot;auth&quot;) || &quot;&quot;;
+  }
+  if (!password) return { ok: false, status: 401, error: &quot;password required&quot; };
+
+  const cfg = JSON.parse(auth);
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(&quot;raw&quot;, enc.encode(password), &quot;PBKDF2&quot;, false, [&quot;deriveBits&quot;]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: &quot;PBKDF2&quot;, salt: hexToBytes(cfg.salt), iterations: cfg.iterations, hash: &quot;SHA-256&quot; },
+    key, 256
+  );
+  const hash = bytesToHex(new Uint8Array(bits)).toLowerCase();
+  if (hash !== String(cfg.hash).toLowerCase()) return { ok: false, status: 403, error: &quot;wrong password&quot; };
+  return { ok: true };
+}
+
+function hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i &lt; out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+function bytesToHex(b) {
+  return Array.prototype.map.call(b, (x) =&gt; (&quot;0&quot; + x.toString(16)).slice(-2)).join(&quot;&quot;);
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === &quot;/health&quot;) return json({ ok: true, repo: env.HF_REPO });
+
+    // CORS preflight for the browser player.
+    if (request.method === &quot;OPTIONS&quot;) {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          &quot;access-control-allow-origin&quot;: &quot;*&quot;,
+          &quot;access-control-allow-headers&quot;: &quot;Authorization, Range&quot;,
+          &quot;access-control-allow-methods&quot;: &quot;GET, HEAD, OPTIONS&quot;,
+          &quot;access-control-expose-headers&quot;: &quot;Content-Length, Content-Range, Accept-Ranges&quot;,
+        },
+      });
+    }
+
+    if (request.method !== &quot;GET&quot; &amp;&amp; request.method !== &quot;HEAD&quot;) return json({ error: &quot;method not allowed&quot; }, 405);
+
+    const auth = await verifyPassword(request, env, url);
+    if (!auth.ok) return json({ error: auth.error }, auth.status);
+
+    const rel = decodeURIComponent(url.pathname.replace(/^\/+/, &quot;&quot;));
+    if (!ALLOWED.test(rel)) return json({ error: &quot;invalid path&quot; }, 400);
+
+    const target = `https://huggingface.co/datasets/${env.HF_REPO}/resolve/main/${rel}`;
+    const headers = { Authorization: `Bearer ${env.HF_TOKEN}` };
+    const range = request.headers.get(&quot;Range&quot;);
+    if (range &amp;&amp; /^bytes=\d*-\d*$/.test(range)) headers.Range = range;
+
+    const upstream = await fetch(target, { headers, method: &quot;GET&quot; });
+    if (!upstream.ok &amp;&amp; upstream.status !== 206) {
+      return json({ error: &quot;HF returned &quot; + upstream.status }, upstream.status);
+    }
+
+    const outHeaders = new Headers({
+      &quot;Access-Control-Allow-Origin&quot;: &quot;*&quot;,
+      &quot;Access-Control-Expose-Headers&quot;: &quot;Content-Length, Content-Range, Accept-Ranges&quot;,
+      &quot;Cache-Control&quot;: &quot;private, max-age=3600&quot;,
+    });
+    for (const k of [&quot;content-type&quot;, &quot;content-length&quot;, &quot;content-range&quot;, &quot;accept-ranges&quot;, &quot;etag&quot;]) {
+      const v = upstream.headers.get(k);
+      if (v) outHeaders.set(k, v);
+    }
+    return new Response(request.method === &quot;HEAD&quot; ? null : upstream.body, {
+      status: upstream.status,
+      headers: outHeaders,
+    });
+  },
+};
+</pre>
   </div>
 </section>
 </main>
