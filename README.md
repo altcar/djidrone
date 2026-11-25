@@ -60,3 +60,19 @@ log by `tools/make_telemetry.py`.
 - Chart.js multi-line graph: relative altitude, speed, plus toggleable absolute
   altitude and vertical speed. Hovering the chart moves a probe marker on the map.
 - 111 of the 116 SRT logs contain valid GPS; clips without a log show a notice.
+
+## Password gate
+
+The gallery is hidden behind a password-only lock screen (`gate.js` + `auth.json`).
+There is no username. The password is stored only as a random-salted
+PBKDF2-SHA256 hash (310,000 iterations); the plaintext is never in the repo.
+
+- Unlocked state lasts for the browser tab session, or 12 hours on this device if
+  “Remember this device” is checked.
+- The 🔒 Lock button in the header locks it again immediately.
+- To change the password, run `python3 tools/set_password.py` from this directory
+  (it prompts twice with hidden input), then commit the updated `auth.json`.
+
+**Important limitation:** this is a static site. The gate hides the interface, but
+it cannot prevent someone from opening the thumbnail/video URLs directly if they
+know them. It is a privacy screen for the page, not server-side authentication.

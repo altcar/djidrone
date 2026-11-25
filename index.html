@@ -5,8 +5,45 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DJI Drone Archive</title>
 <link rel="stylesheet" href="./styles.css">
+<style>
+/* Gate styles are inline so no private content flashes before the lock screen. */
+body.gate-locked{overflow:hidden}
+#gate{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;
+  background:radial-gradient(1200px 600px at 50% -10%,#16283a,#080c11 70%);
+  color:#e8edf3;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.gate-card{width:min(390px,100%);background:#121820;border:1px solid #26303c;border-radius:14px;
+  padding:30px 28px;box-shadow:0 24px 70px #0009}
+.gate-mark{font-size:30px;margin-bottom:6px}
+.gate-card h1{margin:0 0 6px;font-size:25px}
+.gate-card p{margin:0 0 20px;color:#8d9bab;font-size:13px}
+#gate-form input[type=password]{width:100%;box-sizing:border-box;background:#0b0f14;border:1px solid #26303c;
+  border-radius:9px;color:#e8edf3;padding:13px 14px;font:inherit;outline:none}
+#gate-form input[type=password]:focus{border-color:#4cc2ff}
+.gate-remember{display:flex;align-items:center;gap:8px;margin:12px 0 16px;color:#8d9bab;font-size:12px}
+#gate-form button{width:100%;background:#4cc2ff;border:0;border-radius:9px;color:#08131d;
+  font:600 15px/1.4 inherit;padding:12px;cursor:pointer}
+#gate-form button:hover{filter:brightness(1.08)}
+.gate-error{min-height:18px;margin:10px 0 0!important;color:#ff8a8a!important;font-size:12px}
+.gate-foot{margin:16px 0 0!important;text-align:center;font-size:11px}
+@keyframes gate-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.shake .gate-card{animation:gate-shake .28s ease-in-out}
+</style>
 </head>
 <body>
+<div id="gate" class="gate" role="dialog" aria-modal="true" aria-label="Gallery password">
+  <div class="gate-card">
+    <div class="gate-mark">🔒</div>
+    <h1>Family gallery</h1>
+    <p>Enter the password to view the private videos and photos.</p>
+    <form id="gate-form">
+      <input id="gate-password" type="password" placeholder="Password" autocomplete="off" required>
+      <label class="gate-remember"><input id="gate-remember" type="checkbox"> Remember this device for 12 hours</label>
+      <button type="submit">Unlock</button>
+      <p id="gate-error" class="gate-error" role="alert"></p>
+    </form>
+    <p class="gate-foot">No username required.</p>
+  </div>
+</div>
 <header class="hero">
   <div class="hero-inner">
     <div>
@@ -97,6 +134,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="./app.js"></script>
+<script src="./gate.js" defer></script>
 <script src="./telemetry.js" defer></script>
 </body>
 </html>
