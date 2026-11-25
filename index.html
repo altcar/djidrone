@@ -19,6 +19,7 @@
   <nav class="tabbar">
     <button class="tab active" data-tab="videos">🎬 Videos</button>
     <button class="tab" data-tab="pano">🌐 3D Panoramas</button>
+    <a class="tab" href="./progress.html">📊 Upload progress</a>
     <a class="tab external" href="https://huggingface.co/datasets/shalevlau/djidrone" target="_blank" rel="noopener">HF dataset ↗</a>
   </nav>
 </header>
@@ -40,6 +41,7 @@
       <p class="muted" id="pano-help">Drag to look around · scroll to zoom · arrow keys work too.</p>
     </div>
     <div class="pano-actions">
+      <button id="puzzle-toggle" class="btn">🧩 Puzzle: reorder frames</button>
       <button id="reset-view" class="btn">Reset view</button>
       <button id="fullscreen" class="btn">Fullscreen</button>
     </div>
@@ -51,6 +53,20 @@
     <div class="viewer-label" id="pano-label"></div>
   </div>
   <p class="muted fineprint" id="pano-source"></p>
+
+  <div id="puzzle" class="puzzle hidden">
+    <div class="puzzle-head">
+      <div><strong>Arrange the source frames</strong><p class="muted fineprint">Drag tiles to swap positions. They become a 2D wall in the 3D scene.</p></div>
+      <div class="puzzle-controls">
+        <label>Columns <input id="puzzle-cols" type="number" min="1" max="10" value="5"></label>
+        <button id="puzzle-reset" class="btn">Reset order</button>
+        <button id="puzzle-apply" class="btn">Apply to 3D</button>
+        <button id="puzzle-save" class="btn">Save to gist</button>
+      </div>
+    </div>
+    <div id="puzzle-status" class="muted fineprint"></div>
+    <div id="puzzle-grid" class="puzzle-grid"></div>
+  </div>
 </section>
 </main>
 
