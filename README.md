@@ -48,3 +48,14 @@ separate tiles. This exact order was supplied by the user.
 
 That row-major order is the default puzzle arrangement for `001_0005`, stored in
 the gist linked in `config.json`. Use **Reset order** in the puzzle to restore it.
+
+## Flight telemetry
+
+`telemetry.js` adds a "Flight path & telemetry" panel to every video modal. It reads
+`telemetry/<video-stem>.json`, which is generated from the matching DJI `.SRT` flight
+log by `tools/make_telemetry.py`.
+
+- OpenStreetMap + Leaflet map, route drawn in a blue→red gradient (start→end).
+- Chart.js multi-line graph: relative altitude, speed, plus toggleable absolute
+  altitude and vertical speed. Hovering the chart moves a probe marker on the map.
+- 111 of the 116 SRT logs contain valid GPS; clips without a log show a notice.
