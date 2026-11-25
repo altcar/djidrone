@@ -37,9 +37,9 @@ is a derived copy generated for the web.
   the right side and zig-zags back. Documented by DJI owners and review sites.
 - **17 shots** = a shorter 180°/partial-sphere capture. Feature-overlap analysis of
   `001_0005` resolves a **5-column × 3-row grid plus two steep up/down shots**:
-  - top row: PANO 3, 5, 10, 11, 16
-  - middle row: PANO 1, 6, 9, 12, 15
-  - bottom row: PANO 2, 7, 17, 13, 14
+  - top (sky) row: PANO 2, 7, 17, 13, 14
+  - middle (horizon) row: PANO 1, 6, 9, 12, 15
+  - bottom (ground) row: PANO 3, 5, 10, 11, 16
   - steep shots: PANO 4 (up), PANO 8 (down)
 
 That row-major order is the default puzzle arrangement for `001_0005`, stored in
