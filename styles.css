@@ -33,6 +33,11 @@ input[type=search]:focus{border-color:var(--accent)}
 .card-body{padding:10px 12px 13px}
 .card-title{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.badge-pill{font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 6px;border-radius:4px;text-transform:uppercase;border:1px solid}
+.badge-res{color:#4cc2ff;border-color:#4cc2ff;background:#0b2536}
+.badge-codec{color:#7ee787;border-color:#7ee787;background:#10291b}
+.badge-h264{color:#ffd479;border-color:#ffd479;background:#2b2310}
 .empty{text-align:center;color:var(--muted);padding:60px}
 .hidden{display:none!important}
 .pano-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:14px}

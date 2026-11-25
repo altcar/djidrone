@@ -32,7 +32,7 @@
   }
 
   /* ---------- video gallery ---------- */
-  var videos = [], currentQuery = '';
+  var videos = [], currentQuery = '', videoSpecs = {};
   function updateStats() {
     var days = new Set(videos.map(function (v) { return v.date; }).filter(Boolean)).size;
     var total = videos.reduce(function (a, v) { return a + v.bytes; }, 0);
@@ -41,6 +41,15 @@
       '<div class="stat"><b>' + fmtBytes(total) + '</b><span>footage</span></div>' +
       '<div class="stat"><b>' + days + '</b><span>flight days</span></div>' +
       '<div class="stat"><b id="live-indicator" title="Local bridge status">○</b><span>live sync</span></div>';
+  }
+  function specBadges(v) {
+    var s = videoSpecs[v.file] || {};
+    var res = s.width ? (s.height >= 2160 ? '4K' : s.height >= 1080 ? '1080p' : s.height + 'p') : '—';
+    var codec = (s.codec || '').toLowerCase();
+    var codecLabel = codec === 'hevc' ? 'HEVC' : codec === 'h264' || codec === 'avc' ? 'H.264' : (codec || '?').toUpperCase();
+    var codecClass = codec === 'hevc' ? 'badge-codec' : 'badge-h264';
+    return '<span class="badge-pill badge-res" title="' + (s.width || '?') + '×' + (s.height || '?') + '">' + res + '</span>' +
+      '<span class="badge-pill ' + codecClass + '" title="' + (s.profile || codecLabel) + '">' + codecLabel + '</span>';
   }
   function renderVideos(q) {
     currentQuery = q || '';
@@ -53,7 +62,8 @@
         '<img loading="lazy" src="' + v.thumb + '" alt="" onerror="this.src=\'thumbs/placeholder.svg\'">' +
         '<div class="card-body"><div class="card-title" title="' + v.file + '">' + v.file + '</div>' +
         '<div class="card-meta"><span>' + (v.date ? v.date.slice(0, 4) + '-' + v.date.slice(4, 6) + '-' + v.date.slice(6, 8) : 'new') +
-        '</span><span>' + fmtTime(v.duration) + ' · ' + fmtBytes(v.bytes) + '</span></div></div></article>';
+        '</span><span>' + fmtTime(v.duration) + ' · ' + fmtBytes(v.bytes) + '</span></div>' +
+        '<div class="badges">' + specBadges(v) + '</div></div></article>';
     }).join('');
     document.getElementById('count').textContent = shown.length + ' / ' + videos.length + ' clips';
     document.getElementById('empty').classList.toggle('hidden', shown.length > 0);
@@ -64,13 +74,17 @@
       });
     });
   }
-  fetch('./manifest.json').then(function (r) { return r.json(); }).then(function (d) {
-    videos = d.videos;
+  Promise.all([
+    fetch('./manifest.json').then(function (r) { return r.json(); }),
+    fetch('./video-specs.json').then(function (r) { return r.json(); }).catch(function () { return {}; })
+  ]).then(function (res) {
+    videos = res[0].videos;
+    videoSpecs = res[1] || {};
     updateStats();
     renderVideos('');
     if (location.port !== '8877') {
       document.getElementById('media-note').textContent =
-        'Note: the Hugging Face dataset is gated, so video streaming requires the local bridge at http://localhost:8877/ (which uses your HF key).';
+        'Videos are original 4K HEVC from the gated HF dataset and stream through the authenticated proxy; no transcoding is used.';
     }
     refreshFromHF();
   }).catch(function (e) { console.error(e); });
@@ -86,8 +100,9 @@
   function openVideo(v) {
     if (!v) return;
     document.getElementById('modal-title').textContent = v.file;
-    document.getElementById('modal-meta').textContent =
-      fmtTime(v.duration) + ' · ' + fmtBytes(v.bytes) + ' · ' + (v.date || 'new');
+    document.getElementById('modal-meta').innerHTML =
+      fmtTime(v.duration) + ' · ' + fmtBytes(v.bytes) + ' · ' + (v.date || 'new') +
+      ' &nbsp; ' + specBadges(v);
     document.getElementById('modal-download').href = v.url;
     // Gated HF files cannot be streamed anonymously. On the local site, proxy
     // them through the bridge with the user's HF token (Range requests work).
