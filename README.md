@@ -42,9 +42,10 @@ is a derived copy generated for the web.
   - row 3: PANO 16, 11, 10, 5, 3
   - row 4: PANO 17, 4 (rotated 180° in-plane to stitch)
 
-The planes overlap (~35-40%, like DJI's sphere stitching) and their edges are
-feathered so the frames blend into one continuous scene instead of a grid of
-separate tiles. This exact order was supplied by the user.
+`001_0005` is not a full 360° capture, so the viewer has an **FOV slider**
+(90–360°). It controls how much of the sphere the stitched image spans; the
+remaining angle is the gap, visible when you rotate towards it. The same slider
+controls the cylinder span for the 9-shot wide panorama.
 
 That row-major order is the default puzzle arrangement for `001_0005`, stored in
 the gist linked in `config.json`. Use **Reset order** in the puzzle to restore it.

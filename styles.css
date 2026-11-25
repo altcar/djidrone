@@ -40,7 +40,11 @@ input[type=search]:focus{border-color:var(--accent)}
 .pano-head p{margin:0}
 .btn{background:#1c2834;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 13px;font:inherit;cursor:pointer}
 .btn:hover{border-color:var(--accent)}
-.pano-actions{display:flex;gap:8px}
+.pano-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fov-control{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;background:#0d141c;border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.fov-control input[type=range]{width:120px;accent-color:var(--accent)}
+.fov-control span{min-width:38px;text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.fov-control.hidden{display:none!important}
 .pano-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .pano-tab{background:var(--panel);border:1px solid var(--line);border-radius:20px;color:var(--muted);padding:7px 14px;cursor:pointer;font:inherit;font-size:13px}
 .pano-tab.active{background:#123246;border-color:var(--accent);color:var(--accent)}

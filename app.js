@@ -188,6 +188,15 @@
       if (document.fullscreenElement) document.exitFullscreen();
       else if (v.requestFullscreen) v.requestFullscreen();
     });
+    var fovTimer;
+    document.getElementById('fov-slider').addEventListener('input', function (e) {
+      var v = parseInt(e.target.value, 10);
+      document.getElementById('fov-val').textContent = v + '\u00b0';
+      if (!current) return;
+      current.hfov = v;
+      clearTimeout(fovTimer);
+      fovTimer = setTimeout(function () { loadPano(current); }, 120);
+    });
     document.getElementById('puzzle-toggle').addEventListener('click', togglePuzzle);
     document.getElementById('puzzle-reset').addEventListener('click', resetPuzzle);
     document.getElementById('puzzle-apply').addEventListener('click', applyPuzzle);
@@ -230,7 +239,8 @@
   function renderPanoTabs() {
     var tabs = document.getElementById('pano-tabs');
     tabs.innerHTML = panoData.map(function (s, i) {
-      var mode = s.mode === 'sphere' ? '360° sphere' : (s.mode === 'flat' ? 'wide pano' : 'frames 3D');
+      var mode = s.mode === 'sphere' ? (s.partial ? 'partial sphere' : '360° sphere')
+        : (s.mode === 'flat' ? 'wide pano' : 'frames 3D');
       return '<button class="pano-tab' + (current && current.id === s.id ? ' active' : (i === 0 ? ' active' : '')) + '" data-i="' + i + '">' +
         s.id + ' · ' + s.count + ' shots · ' + mode + '</button>';
     }).join('');
@@ -422,9 +432,24 @@
     if (puzzleOpen) renderPuzzle();
   }
 
+  function updateFovControl(set) {
+    var ctl = document.getElementById('fov-control');
+    if (!ctl) return;
+    var applicable = set.mode === 'flat' || set.partial;
+    ctl.classList.toggle('hidden', !applicable);
+    if (!applicable) return;
+    var aspect = (set.size && set.size[0] / set.size[1]) || 1.7;
+    var v = set.hfov || (set.mode === 'flat' ? 125 : Math.round(180 * aspect));
+    v = Math.max(90, Math.min(360, v));
+    set.hfov = v;
+    document.getElementById('fov-slider').value = v;
+    document.getElementById('fov-val').textContent = v + '\u00b0';
+  }
+
   function loadPano(set) {
     if (!set || !renderer) return;
     current = set;
+    updateFovControl(set);
     document.getElementById('loading').classList.remove('hidden');
     if (!set.frames || !set.frames.length) {
       // Fallback if only a single stitched file is known.
@@ -445,12 +470,18 @@
 
     var R = 500, geo;
     if (set.mode === 'sphere') {
-      geo = new THREE.SphereGeometry(R, 72, 48);
+      var span = set.partial ? (set.hfov || 306) : 360;
+      var phiLength = THREE.MathUtils.degToRad(span);
+      // Image is centred on -Z (camera forward); the rest is the gap.
+      var phiStart = -Math.PI / 2 - phiLength / 2;
+      geo = new THREE.SphereGeometry(R, 72, 48, phiStart, phiLength);
       geo.scale(-1, 1, 1);
-      limitYaw = null; limitPitch = 1.25;
+      // Allow a full turn so the user can see the FOV gap at the back.
+      limitYaw = null;
+      limitPitch = 1.25;
     } else {
       var aspect = (set.size && set.size[0] / set.size[1]) || 1.4;
-      var hfov = THREE.MathUtils.degToRad(125);
+      var hfov = THREE.MathUtils.degToRad(set.hfov || 125);
       var vfov = 2 * Math.atan(Math.tan(hfov / 2) / aspect);
       var height = 2 * R * Math.tan(vfov / 2);
       // Camera looks down -Z, so centre the cylinder arc on -Z (theta = PI).
@@ -468,7 +499,9 @@
     wantYaw = yaw = 0; wantPitch = pitch = 0;
     camera.fov = 75; camera.updateProjectionMatrix();
     document.getElementById('pano-label').textContent =
-      set.id.replace('_', ' / ') + ' — ' + (set.mode === 'sphere' ? '360° interactive sphere' : 'wide interactive panorama') + ' (' + set.count + ' source shots)';
+      set.id.replace('_', ' / ') + ' — ' +
+      (set.mode === 'sphere' ? (set.partial ? 'partial interactive sphere (' + Math.round(set.hfov || 360) + '° FOV)' : '360° interactive sphere') : 'wide interactive panorama') +
+      ' (' + set.count + ' source shots)';
     document.getElementById('pano-source').innerHTML =
       'Source shots: <a href="' + set.hfFolder + '" target="_blank" rel="noopener">PANORAMA/' + set.id + '/</a> on Hugging Face · ' +
       (set.source && set.source.indexOf('dji srt') === 0 ? 'DJI auto-stitched JPEG: ' + set.source : 'stitched from the source photos');
