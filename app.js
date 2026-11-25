@@ -29,7 +29,7 @@
   }
 
   /* ---------- video gallery ---------- */
-  var videos = [], currentQuery = '';
+  var videos = [], currentQuery = '', localPlayback = new Set();
   function updateStats() {
     var days = new Set(videos.map(function (v) { return v.date; }).filter(Boolean)).size;
     var total = videos.reduce(function (a, v) { return a + v.bytes; }, 0);
@@ -63,6 +63,11 @@
   }
   fetch('./manifest.json').then(function (r) { return r.json(); }).then(function (d) {
     videos = d.videos;
+    if (location.port === '8877') {
+      fetch('./playback-index.json').then(function (r) { return r.json(); })
+        .then(function (names) { names.forEach(function (n) { localPlayback.add(n); }); })
+        .catch(function () {});
+    }
     updateStats();
     renderVideos('');
     if (location.port !== '8877') {
@@ -89,8 +94,12 @@
     // Gated HF files cannot be streamed anonymously. On the local site, proxy
     // them through the bridge with the user's HF token (Range requests work).
     var src = v.url;
-    if (location.port === '8877' && v.url.indexOf('/resolve/main/') >= 0) {
-      src = BRIDGE + '/api/video/' + v.url.split('/resolve/main/')[1];
+    if (location.port === '8877') {
+      if (localPlayback.has(v.file)) {
+        src = './playback/' + encodeURIComponent(v.file);
+      } else if (v.url.indexOf('/resolve/main/') >= 0) {
+        src = BRIDGE + '/api/video/' + v.url.split('/resolve/main/')[1];
+      }
     }
     player.src = src;
     player.load();
