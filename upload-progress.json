@@ -3,11 +3,11 @@
   "phase": "hashing",
   "percent": 0.0,
   "percent_by_files": 0.0,
-  "updated": "2026-11-25T10:59:54",
-  "elapsed_s": 1473,
+  "updated": "2026-11-25T11:01:56",
+  "elapsed_s": 1595,
   "process_alive": true,
-  "process_rss_bytes": 110510080,
-  "current_file": "uploaded/DJI_20250626210018_0009_D.MP4",
+  "process_rss_bytes": 110518272,
+  "current_file": "uploaded/DJI_20250626224558_0028_D.MP4",
   "uploaded_bytes": 0,
   "total_bytes": 220466613186,
   "speed_bps": 0,
@@ -17,5 +17,5 @@
   "total_videos": 119,
   "committed_files": 0,
   "committed_videos": 0,
-  "hashed_files": 220
+  "hashed_files": 230
 }
