@@ -55,11 +55,11 @@ async function tick(){
   catch(e){}
   if(!d){try{const r=await fetch('./upload-progress.json',{cache:'no-store'});if(r.ok)d=await r.json();}catch(e){err=e.message}}
   if(!d){document.getElementById('err').textContent='Progress source unavailable. Start the local bridge: python3 gist_bridge.py';return}
-  const pct=d.percent!=null?d.percent:Math.round(100*d.uploaded_bytes/d.total_bytes);
+  const pct=d.percent!=null?d.percent:(d.percent_by_files!=null?d.percent_by_files:null);
   document.getElementById('pct').textContent=pct!=null?pct+'%':'—';
   document.getElementById('barfill').style.width=(pct||0)+'%';
-  document.getElementById('status').textContent=d.status||'?';
-  document.getElementById('file').textContent=d.current_file||'Preparing / hashing files…';
+  document.getElementById('status').textContent=d.phase||d.status||'?';
+  document.getElementById('file').textContent=d.current_file||(d.phase==='hashing'?'Hashing 319 source files for the single Xet batch…':'Preparing upload…');
   document.getElementById('bytes').textContent=gb(d.uploaded_bytes)+' / '+gb(d.total_bytes);
   document.getElementById('speed').textContent=mb(d.speed_bps);
   document.getElementById('eta').textContent=dur(d.eta_s);

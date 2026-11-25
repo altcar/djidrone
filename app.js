@@ -272,14 +272,16 @@
       plane.position.set(R * Math.sin(ang), y, -R * Math.cos(ang));
       plane.rotation.y = -ang;
       frameGroup.add(plane);
+      var isFirst = (i === 0);
       loader.load(set.frames[idx], function (t) {
         if (THREE.sRGBEncoding) t.encoding = THREE.sRGBEncoding;
         t.anisotropy = renderer.capabilities.getMaxAnisotropy();
         mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true;
-        if (i === 0) document.getElementById('loading').classList.add('hidden');
+        if (isFirst) document.getElementById('loading').classList.add('hidden');
       });
     }
     scene.add(frameGroup);
+    document.getElementById('loading').classList.add('hidden');
     limitYaw = (a.cols - 1) / 2 * colStep + 0.3;
     limitPitch = Math.abs(((a.rows - 1) / 2) * h * rowStep) / R + 0.2;
     wantYaw = yaw = 0; wantPitch = pitch = 0;
