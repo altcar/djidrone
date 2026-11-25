@@ -28,7 +28,8 @@
     "stitched": true,
     "source": "Hugin cpfind/autooptimiser/enblend stitch",
     "partial": true,
-    "hfov": 306
+    "hfov": 306,
+    "vfov": 180
   },
   {
     "id": "001_0081",

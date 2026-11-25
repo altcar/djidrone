@@ -189,14 +189,20 @@
       else if (v.requestFullscreen) v.requestFullscreen();
     });
     var fovTimer;
-    document.getElementById('fov-slider').addEventListener('input', function (e) {
-      var v = parseInt(e.target.value, 10);
-      document.getElementById('fov-val').textContent = v + '\u00b0';
-      if (!current) return;
-      current.hfov = v;
-      clearTimeout(fovTimer);
-      fovTimer = setTimeout(function () { loadPano(current); }, 120);
-    });
+    function onFovInput(member, sliderId, labelId) {
+      return function (e) {
+        var v = parseInt(e.target.value, 10);
+        document.getElementById(labelId).textContent = v + '\u00b0';
+        if (!current) return;
+        current[member] = v;
+        clearTimeout(fovTimer);
+        fovTimer = setTimeout(function () { loadPano(current); }, 120);
+      };
+    }
+    document.getElementById('fov-slider').addEventListener(
+      'input', onFovInput('hfov', 'fov-slider', 'fov-val'));
+    document.getElementById('vfov-slider').addEventListener(
+      'input', onFovInput('vfov', 'vfov-slider', 'vfov-val'));
     document.getElementById('puzzle-toggle').addEventListener('click', togglePuzzle);
     document.getElementById('puzzle-reset').addEventListener('click', resetPuzzle);
     document.getElementById('puzzle-apply').addEventListener('click', applyPuzzle);
@@ -434,16 +440,25 @@
 
   function updateFovControl(set) {
     var ctl = document.getElementById('fov-control');
+    var vctl = document.getElementById('vfov-control');
     if (!ctl) return;
     var applicable = set.mode === 'flat' || set.partial;
     ctl.classList.toggle('hidden', !applicable);
+    vctl.classList.toggle('hidden', !(set.mode === 'sphere' && set.partial));
     if (!applicable) return;
     var aspect = (set.size && set.size[0] / set.size[1]) || 1.7;
-    var v = set.hfov || (set.mode === 'flat' ? 125 : Math.round(180 * aspect));
-    v = Math.max(90, Math.min(360, v));
-    set.hfov = v;
-    document.getElementById('fov-slider').value = v;
-    document.getElementById('fov-val').textContent = v + '\u00b0';
+    var h = set.hfov || (set.mode === 'flat' ? 125 : Math.round(180 * aspect));
+    h = Math.max(90, Math.min(360, h));
+    set.hfov = h;
+    document.getElementById('fov-slider').value = h;
+    document.getElementById('fov-val').textContent = h + '\u00b0';
+    if (set.mode === 'sphere' && set.partial) {
+      var v = set.vfov || Math.round(h * ((set.size && set.size[1] / set.size[0]) || 0.59));
+      v = Math.max(30, Math.min(180, v));
+      set.vfov = v;
+      document.getElementById('vfov-slider').value = v;
+      document.getElementById('vfov-val').textContent = v + '\u00b0';
+    }
   }
 
   function loadPano(set) {
@@ -474,11 +489,14 @@
       var phiLength = THREE.MathUtils.degToRad(span);
       // Image is centred on -Z (camera forward); the rest is the gap.
       var phiStart = -Math.PI / 2 - phiLength / 2;
-      geo = new THREE.SphereGeometry(R, 72, 48, phiStart, phiLength);
+      var vspan = set.partial ? (set.vfov || 180) : 180;
+      var thetaLength = THREE.MathUtils.degToRad(vspan);
+      var thetaStart = Math.PI / 2 - thetaLength / 2;
+      geo = new THREE.SphereGeometry(R, 72, 48, phiStart, phiLength, thetaStart, thetaLength);
       geo.scale(-1, 1, 1);
       // Allow a full turn so the user can see the FOV gap at the back.
       limitYaw = null;
-      limitPitch = 1.25;
+      limitPitch = set.partial ? (thetaLength / 2 - 0.03) : 1.25;
     } else {
       var aspect = (set.size && set.size[0] / set.size[1]) || 1.4;
       var hfov = THREE.MathUtils.degToRad(set.hfov || 125);
@@ -500,7 +518,7 @@
     camera.fov = 75; camera.updateProjectionMatrix();
     document.getElementById('pano-label').textContent =
       set.id.replace('_', ' / ') + ' — ' +
-      (set.mode === 'sphere' ? (set.partial ? 'partial interactive sphere (' + Math.round(set.hfov || 360) + '° FOV)' : '360° interactive sphere') : 'wide interactive panorama') +
+      (set.mode === 'sphere' ? (set.partial ? 'partial interactive sphere (' + Math.round(set.hfov || 360) + '° H × ' + Math.round(set.vfov || 180) + '° V)' : '360° interactive sphere') : 'wide interactive panorama') +
       ' (' + set.count + ' source shots)';
     document.getElementById('pano-source').innerHTML =
       'Source shots: <a href="' + set.hfFolder + '" target="_blank" rel="noopener">PANORAMA/' + set.id + '/</a> on Hugging Face · ' +
