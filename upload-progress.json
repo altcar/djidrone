@@ -1,0 +1,19 @@
+{
+  "status": "uploading",
+  "started": "2026-11-25T09:50:16",
+  "updated": "2026-11-25T10:07:32",
+  "elapsed_s": 510969,
+  "process_alive": true,
+  "process_rss_bytes": 2825285632,
+  "current_file": null,
+  "percent": null,
+  "uploaded_bytes": 0,
+  "total_bytes": 219488799408,
+  "speed_bps": 0,
+  "eta_s": null,
+  "xet_cache_bytes": 1738467135,
+  "total_files": 319,
+  "total_videos": 119,
+  "committed_files": 210,
+  "committed_videos": 8
+}
