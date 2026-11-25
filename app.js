@@ -115,8 +115,10 @@
       cols: 5, rows: 4,
       // 14 13 2 7 8 / 15 12 9 6 1 / 16 11 10 5 3 / 17 4
       order: [13, 12, 1, 6, 7,   14, 11, 8, 5, 0,   15, 10, 9, 4, 2,   16, 3],
-      // 17 and 4 were captured rotated; spin them in-plane to stitch.
-      roll: { 16: Math.PI, 3: Math.PI }
+      // 17 was captured sideways: rotate 90° anticlockwise.
+      roll: { 16: -Math.PI / 2 },
+      // 17 sits under the left edge; 4 sits under 3 and overlaps it.
+      customCol: { 16: 0, 3: 4 }
     }
   };
 
@@ -282,19 +284,27 @@
   /* Build a spherical patch by projecting a perspective camera frame
      (hfov x vfov, centred on yaw/pitch) onto a sphere of radius R. This keeps
      adjacent DJI frames aligned instead of showing flat-plane distortion. */
-  function sphericalPatchGeometry(yaw, pitch, hfov, vfov, R, su, sv, uv0u, uv1u, uv0v, uv1v) {
+  function sphericalPatchGeometry(yaw, pitch, hfov, vfov, R, su, sv, uv0u, uv1u, uv0v, uv1v, roll) {
     var pos = [], uv = [], idx = [];
-    var ax = new THREE.Vector3(1, 0, 0), ay = new THREE.Vector3(0, 1, 0);
-    var tx = Math.tan(hfov / 2), ty = Math.tan(vfov / 2);
+    var cr = Math.cos(roll || 0), sr = Math.sin(roll || 0);
     for (var j = 0; j <= sv; j++) {
       var v = j / sv;
       for (var i = 0; i <= su; i++) {
         var u = i / su;
-        var d = new THREE.Vector3((u - 0.5) * 2 * tx, (0.5 - v) * 2 * ty, -1).normalize();
-        d.applyAxisAngle(ax, pitch).applyAxisAngle(ay, yaw);
-        pos.push(d.x * R, d.y * R, d.z * R);
-        // Sample only the central part of the frame that maps to this slot.
-        uv.push(uv0u + u * (uv1u - uv0u), 1 - (uv0v + v * (uv1v - uv0v)));
+        // Exact lat/lon slot: adjacent slots share edges with no gaps.
+        var yaw2 = yaw + (0.5 - u) * hfov;
+        var pitch2 = pitch + (0.5 - v) * vfov;
+        var cp = Math.cos(pitch2);
+        pos.push(
+          Math.sin(yaw2) * cp * R,
+          Math.sin(pitch2) * R,
+          -Math.cos(yaw2) * cp * R
+        );
+        // Rotate the image inside its slot, then sample the central crop.
+        var cu = u - 0.5, cv = v - 0.5;
+        var ru = cu * cr - cv * sr, rv = cu * sr + cv * cr;
+        var uu = 0.5 + ru, vv = 0.5 + rv;
+        uv.push(uv0u + uu * (uv1u - uv0u), 1 - (uv0v + vv * (uv1v - uv0v)));
       }
     }
     for (var jj = 0; jj < sv; jj++) {
@@ -357,33 +367,45 @@
     else pitches = [0.672, 0.0, -0.672, -1.344];
     var aspect = (set.size && set.size[0] / set.size[1]) || 1.333;
     var frameHfov = 1.274; // ~73 deg horizontal camera FOV
-    var w = 2 * R * Math.tan(frameHfov / 2);
-    var h = w / aspect;
+    var frameVfov = 2 * Math.atan(Math.tan(frameHfov / 2) / aspect);
+    var rowStep = 0.672;
+    // Non-feathered slots: each frame is cropped to its non-overlapping grid
+    // cell, so adjacent cells meet without duplicated content.
+    var slotHfov = colStep, slotVfov = rowStep;
+    var cropU = Math.min(1, slotHfov / frameHfov);
+    var cropV = Math.min(1, slotVfov / frameVfov);
+    var uv0u = 0.5 - cropU / 2, uv1u = 0.5 + cropU / 2;
+    var uv0v = 0.5 - cropV / 2, uv1v = 0.5 + cropV / 2;
     var loader = new THREE.TextureLoader();
     var rowCount = {};
     for (var r = 0; r < n; r++) {
       var rr = Math.floor(r / a.cols);
       rowCount[rr] = (rowCount[rr] || 0) + 1;
     }
+    var dflt = DJI_DEFAULTS[set.id] || {};
+    var rollMap = dflt.roll || {};
+    var customCol = dflt.customCol || {};
     for (var i = 0; i < n; i++) {
       var idx = a.order[i], col = i % a.cols, row = Math.floor(i / a.cols);
       // Positive yaw looks left, so column 0 gets the largest positive yaw.
-      var ang = ((rowCount[row] - 1) / 2 - col) * colStep;
+      var ang = (customCol[idx] !== undefined)
+        ? (customCol[idx] - (a.cols - 1) / 2) * colStep
+        : (col - (rowCount[row] - 1) / 2) * colStep;
       var rowPitch = pitches[row] !== undefined ? pitches[row] : (0.70 - row * 0.45);
-      var y = R * Math.tan(rowPitch);
       let mat = new THREE.MeshBasicMaterial({
-        color: 0x555555, side: THREE.DoubleSide, transparent: true, depthWrite: false
+        color: 0x555555, side: THREE.DoubleSide
       });
-      let geo = new THREE.PlaneGeometry(w, h);
-      let rollMap = (DJI_DEFAULTS[set.id] && DJI_DEFAULTS[set.id].roll) || {};
-      if (rollMap[idx]) geo.rotateZ(rollMap[idx]);
-      let plane = new THREE.Mesh(geo, mat);
-      plane.position.set(R * Math.sin(ang), y, -R * Math.cos(ang));
-      plane.rotation.y = -ang;
-      frameGroup.add(plane);
+      let patch = new THREE.Mesh(
+        sphericalPatchGeometry(ang, rowPitch, slotHfov, slotVfov, R, 20, 16,
+                               uv0u, uv1u, uv0v, uv1v, rollMap[idx] || 0),
+        mat
+      );
+      frameGroup.add(patch);
       let isFirst = (i === 0);
-      featherTexture(set.frames[idx], function (t) {
-        if (t) { mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; }
+      loader.load(set.frames[idx], function (t) {
+        if (THREE.sRGBEncoding) t.encoding = THREE.sRGBEncoding;
+        t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true;
         if (isFirst) document.getElementById('loading').classList.add('hidden');
       });
     }
