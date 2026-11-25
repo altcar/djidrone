@@ -194,7 +194,9 @@
     clearScene();
     frameGroup = new THREE.Group();
     var R = 450, n = set.frames.length, step = Math.PI * 2 / n;
-    var w = 2 * R * Math.tan(step / 2) * 1.04, h = w / ((set.size && set.size[0] / set.size[1]) || 1.333);
+    // Planes are deliberately larger than the angular step so the ring fills the
+    // viewport; source frames overlap heavily anyway.
+    var w = 2 * R * Math.tan(THREE.MathUtils.degToRad(36)), h = w / ((set.size && set.size[0] / set.size[1]) || 1.333);
     var loader = new THREE.TextureLoader();
     set.frames.forEach(function (url, i) {
       var geo = new THREE.PlaneGeometry(w, h);
