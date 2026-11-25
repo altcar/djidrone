@@ -113,7 +113,10 @@
   var DJI_DEFAULTS = {
     '001_0005': {
       cols: 5, rows: 4,
-      order: [12, 1, 6, 7, 13,   11, 8, 5, 0, 14,   10, 9, 4, 2, 15,   3, 16]
+      // 14 13 2 7 8 / 15 12 9 6 1 / 16 11 10 5 3 / 17 4
+      order: [13, 12, 1, 6, 7,   14, 11, 8, 5, 0,   15, 10, 9, 4, 2,   16, 3],
+      // 17 and 4 were captured rotated; spin them in-plane to stitch.
+      roll: { 16: Math.PI, 3: Math.PI }
     }
   };
 
@@ -371,7 +374,10 @@
       let mat = new THREE.MeshBasicMaterial({
         color: 0x555555, side: THREE.DoubleSide, transparent: true, depthWrite: false
       });
-      let plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      let geo = new THREE.PlaneGeometry(w, h);
+      let rollMap = (DJI_DEFAULTS[set.id] && DJI_DEFAULTS[set.id].roll) || {};
+      if (rollMap[idx]) geo.rotateZ(rollMap[idx]);
+      let plane = new THREE.Mesh(geo, mat);
       plane.position.set(R * Math.sin(ang), y, -R * Math.cos(ang));
       plane.rotation.y = -ang;
       frameGroup.add(plane);

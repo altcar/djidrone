@@ -37,10 +37,10 @@ is a derived copy generated for the web.
   the right side and zig-zags back. Documented by DJI owners and review sites.
 - **17 shots** = a shorter 180°/partial-sphere capture. Feature-overlap analysis of
   `001_0005` resolves a **5-column × 3-row grid plus two steep up/down shots**:
-  - row 1: PANO 13, 2, 7, 8, 14
-  - row 2: PANO 12, 9, 6, 1, 15
-  - row 3: PANO 11, 10, 5, 3, 16
-  - row 4: PANO 4, 17
+  - row 1: PANO 14, 13, 2, 7, 8
+  - row 2: PANO 15, 12, 9, 6, 1
+  - row 3: PANO 16, 11, 10, 5, 3
+  - row 4: PANO 17, 4 (rotated 180° in-plane to stitch)
 
 The planes overlap (~35-40%, like DJI's sphere stitching) and their edges are
 feathered so the frames blend into one continuous scene instead of a grid of
