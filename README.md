@@ -47,8 +47,9 @@ is a derived copy generated for the web.
 remaining angle is the gap, visible when you rotate towards it. The same slider
 controls the cylinder span for the 9-shot wide panorama.
 
-That row-major order is the default puzzle arrangement for `001_0005`, stored in
-the gist linked in `config.json`. Use **Reset order** in the puzzle to restore it.
+That row-major order is the default puzzle arrangement for `001_0005`, built
+into the site. Puzzle arrangements are saved only in the viewer's browser
+(localStorage); there is no gist or server involved. **Reset order** restores it.
 
 ## Flight telemetry
 

@@ -40,7 +40,7 @@
       '<div class="stat"><b>' + videos.length + '</b><span>videos</span></div>' +
       '<div class="stat"><b>' + fmtBytes(total) + '</b><span>footage</span></div>' +
       '<div class="stat"><b>' + days + '</b><span>flight days</span></div>' +
-      '<div class="stat"><b id="live-indicator" title="Local bridge status">○</b><span>live sync</span></div>';
+      '<div class="stat"><b id="live-indicator" title="HF sync status">○</b><span>live sync</span></div>';
   }
   function specBadges(v) {
     var s = videoSpecs[v.file] || {};
@@ -157,20 +157,11 @@
   };
 
   function loadArrangements() {
-    try { var a = JSON.parse(localStorage.getItem('djidrone-arrangements') || '{}'); Object.assign(arrangements, a); } catch (e) {}
-    return fetch(BRIDGE + '/api/order', { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .catch(function () {
-        return fetch('./config.json').then(function (r) { return r.json(); }).then(function (c) {
-          return fetch(c.gistRaw + '?t=' + Date.now()).then(function (r) {
-            if (!r.ok) throw 0;
-            document.getElementById('live-indicator') && (document.getElementById('live-indicator').textContent = '●');
-            return r.json();
-          });
-        });
-      })
-      .then(function (d) { if (d) { arrangements = d; localStorage.setItem('djidrone-arrangements', JSON.stringify(d)); } })
-      .catch(function () {});
+    // Puzzle orders are stored only in this browser; no gist or local bridge.
+    try {
+      var a = JSON.parse(localStorage.getItem('djidrone-arrangements') || '{}');
+      Object.assign(arrangements, a);
+    } catch (e) {}
   }
 
   function initPano() {
@@ -402,7 +393,7 @@
   }
 
   /* Frames are laid out on a cylinder segment as overlapping planes, using the
-     DJI shot order from the puzzle/gist. Edges are feathered so they blend. */
+     DJI shot order from the puzzle editor. Edges are feathered so they blend. */
   function loadFrames(set) {
     clearScene();
     frameGroup = new THREE.Group();
@@ -468,7 +459,7 @@
     document.getElementById('pano-label').textContent =
       set.id.replace('_', ' / ') + ' — ' + a.cols + '×' + a.rows + ' spherical frame panorama (' + n + ' shots)';
     document.getElementById('pano-source').innerHTML =
-      'Arrangement saved in <a href="https://gist.github.com/altcar/02bb92e7fe0043b587ee0be1f10afae4" target="_blank" rel="noopener">this gist</a> · originals: <a href="' + set.hfFolder + '" target="_blank" rel="noopener">PANORAMA/' + set.id + '/</a>';
+      'Arrangement saved in this browser · originals: <a href="' + set.hfFolder + '" target="_blank" rel="noopener">PANORAMA/' + set.id + '/</a>';
     if (puzzleOpen) renderPuzzle();
   }
 
@@ -616,27 +607,20 @@
       order: puzzleOrder.slice()
     };
     localStorage.setItem('djidrone-arrangements', JSON.stringify(arrangements));
-    document.getElementById('puzzle-status').textContent = 'Applied locally. Click “Save to gist” to share it.';
+    document.getElementById('puzzle-status').textContent = 'Applied and saved in this browser.';
     // A stitched panorama is the default; applying the puzzle switches to tiles.
     if (current.stitched) current.mode = 'frames';
     loadPano(current);
   }
   function saveArrangements() {
     var status = document.getElementById('puzzle-status');
-    var body = JSON.stringify(arrangements, null, 2);
-    fetch(BRIDGE + '/api/order', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      status.textContent = d.ok ? 'Saved to gist ✓ (gist status ' + d.gistStatus + ')' : 'Save failed: ' + (d.error || 'unknown');
-    }).catch(function (e) {
-      status.innerHTML = 'Local bridge is not running. Arrangement kept in this browser. ' +
-        '<a href="data:application/json;base64,' + btoa(unescape(encodeURIComponent(body))) + '" download="pano-arrangements.json">Download JSON</a>';
-    });
+    localStorage.setItem('djidrone-arrangements', JSON.stringify(arrangements));
+    status.textContent = 'Saved in this browser ✓ — no gist or server needed.';
   }
 
   /* ---------- dynamic discovery from HF (new videos / panoramas) ---------- */
   function refreshFromHF() {
-    fetch(BRIDGE + '/api/hf?path=uploaded&recursive=true', { cache: 'no-store' })
+    fetch('https://huggingface.co/api/datasets/shalevlau/djidrone/tree/main/uploaded?recursive=true&expand=false', { cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw 0; return r.json(); })
       .then(function (items) {
         var known = new Set(videos.map(function (v) { return v.file; }));
@@ -659,7 +643,7 @@
       }).catch(function () {});
   }
   function refreshPanosFromHF() {
-    fetch(BRIDGE + '/api/hf?path=PANORAMA&recursive=true', { cache: 'no-store' })
+    fetch('https://huggingface.co/api/datasets/shalevlau/djidrone/tree/main/PANORAMA?recursive=true&expand=false', { cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw 0; return r.json(); })
       .then(function (items) {
         var folders = {};
