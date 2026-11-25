@@ -193,9 +193,13 @@
     Promise.all([
       fetch('./pano/manifest.json').then(function (r) { return r.json(); }),
       fetch('./pano/frames/index.json').then(function (r) { return r.json(); }).catch(function () { return {}; }),
+      fetch('./pano/dynamic.json').then(function (r) { return r.json(); }).catch(function () { return []; }),
       loadArrangements()
     ]).then(function (r) {
       panoData = r[0]; frameIndex = r[1];
+      (Array.isArray(r[2]) ? r[2] : []).forEach(function (s) {
+        if (!panoData.some(function (x) { return x.id === s.id; })) panoData.push(s);
+      });
       panoData.forEach(function (s) { if (frameIndex[s.id]) s.frames = frameIndex[s.id]; });
       renderPanoTabs();
       if (panoData.length) loadPano(panoData[0]);
