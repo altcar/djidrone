@@ -25,7 +25,11 @@
     '.tel-grad{height:8px;width:160px;border-radius:5px;background:linear-gradient(90deg,#2c7bb6,#abd9e9,#ffffbf,#fdae61,#d7191c)}',
     '.tel-msg{padding:18px;text-align:center;color:#8d9bab;font-size:13px}',
     '.leaflet-container{font:inherit}',
-    '.tel-leaflet-tip{background:#0b0f14;color:#e8edf3;border:1px solid #26303c;font-size:11px}'
+    '.tel-leaflet-tip{background:#0b0f14;color:#e8edf3;border:1px solid #26303c;font-size:11px}',
+    '.tel-playhead{position:absolute;width:2px;background:#ffd166;pointer-events:none;z-index:4;box-shadow:0 0 6px #ffd16688;display:none}',
+    '.tel-playdot{position:absolute;left:-4px;width:10px;height:10px;border-radius:50%;background:#ffd166;border:2px solid #0b0f14;box-sizing:border-box}',
+    '.tel-now{color:#ffd166!important}',
+    '.tel-play-marker{filter:drop-shadow(0 0 4px #ffd166)}'
   ].join('\n');
   document.head.appendChild(css);
 
@@ -57,6 +61,8 @@
   }
 
   var panel, map, chart, hoverMarker, mapLayers = [], lastKey = '';
+  var curData = null, curTimes = null, playMarker = null, playheadEl = null, playDot = null;
+  var hookedVideo = null, rafId = null;
 
   function buildPanel() {
     if (panel) return panel;
@@ -96,9 +102,11 @@
   }
 
   function clearView() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     if (chart) { chart.destroy(); chart = null; }
     if (map) { map.remove(); map = null; }
     hoverMarker = null; mapLayers = [];
+    curData = null; curTimes = null; playMarker = null; playheadEl = null; playDot = null;
     var stats = document.getElementById('tel-stats');
     if (stats) stats.innerHTML = '';
     var msg = document.getElementById('tel-msg');
@@ -150,6 +158,12 @@
     }).addTo(map);
     hoverMarker.setStyle({ opacity: 0, fillOpacity: 0 });
 
+    playMarker = L.circleMarker(latlngs[0], {
+      radius: 9, color: '#0b0f14', weight: 3, fillColor: '#ffd166', fillOpacity: 1,
+      className: 'tel-play-marker'
+    }).addTo(map).bindTooltip('t = 0.0 s', { className: 'tel-leaflet-tip' });
+    playMarker.setStyle({ opacity: 0, fillOpacity: 0 });
+
     map.fitBounds(L.latLngBounds(latlngs), { padding: [26, 26] });
     mapLayers = [map];
   }
@@ -157,6 +171,15 @@
   function drawChart(data) {
     var canvas = document.getElementById('tel-chart');
     if (!canvas || !window.Chart) return;
+    var wrap = canvas.parentNode;
+    var old = wrap.querySelector('.tel-playhead');
+    if (old) old.remove();
+    playheadEl = document.createElement('div');
+    playheadEl.className = 'tel-playhead';
+    playDot = document.createElement('i');
+    playDot.className = 'tel-playdot';
+    playheadEl.appendChild(playDot);
+    wrap.appendChild(playheadEl);
     var pts = data.points;
     var labels = pts.map(function (p) { return p[0]; });
     var rel = pts.map(function (p) { return p[3]; });
@@ -204,12 +227,91 @@
     });
   }
 
+  function nearestIndex(times, t) {
+    var lo = 0, hi = times.length - 1;
+    if (t <= times[0]) return 0;
+    if (t >= times[hi]) return hi;
+    while (lo + 1 < hi) {
+      var mid = (lo + hi) >> 1;
+      if (times[mid] <= t) lo = mid; else hi = mid;
+    }
+    return (t - times[lo] <= times[hi] - t) ? lo : hi;
+  }
+
+  function positionPlayhead(t, p) {
+    if (!chart || !playheadEl) return;
+    var canvas = document.getElementById('tel-chart');
+    var area = chart.chartArea;
+    var x = chart.scales.x.getPixelForValue(t);
+    var xc = Math.max(area.left, Math.min(area.right, x));
+    var top = chart.scales.y.getPixelForValue(p ? p[3] : 0);
+    top = Math.max(area.top, Math.min(area.bottom, top));
+    playheadEl.style.display = 'block';
+    playheadEl.style.left = (canvas.offsetLeft + xc) + 'px';
+    playheadEl.style.top = (canvas.offsetTop + area.top) + 'px';
+    playheadEl.style.height = (area.bottom - area.top) + 'px';
+    if (playDot) playDot.style.top = Math.max(0, top - area.top - 5) + 'px';
+  }
+
+  function syncPlayhead(t) {
+    if (!curData || !curTimes) return;
+    t = Math.max(0, Number(t) || 0);
+    var p = curData.points[nearestIndex(curTimes, t)];
+    if (!p) return;
+    if (playMarker) {
+      playMarker.setLatLng([p[1], p[2]]);
+      playMarker.setStyle({ opacity: 1, fillOpacity: 1 });
+      playMarker.bringToFront();
+      playMarker.setTooltipContent('t = ' + p[0].toFixed(1) + ' s · ' + p[3].toFixed(1) + ' m · ' + p[5].toFixed(1) + ' km/h');
+    }
+    positionPlayhead(p[0], p);
+    var now = document.getElementById('tel-now');
+    if (now) now.innerHTML = '<b>' + p[0].toFixed(1) + ' s</b>';
+  }
+
+  function syncFromVideo(v) {
+    if (!v) return;
+    syncPlayhead(v.currentTime);
+    if (!v.paused && !v.ended) startLoop();
+  }
+
+  function startLoop() {
+    if (rafId) return;
+    var v = document.getElementById('player');
+    function step() {
+      rafId = null;
+      if (!v || v.paused || v.ended) return;
+      syncPlayhead(v.currentTime);
+      rafId = requestAnimationFrame(step);
+    }
+    rafId = requestAnimationFrame(step);
+  }
+
+  function hookPlayer() {
+    var v = document.getElementById('player');
+    if (!v || v === hookedVideo) return;
+    if (hookedVideo) return; // #player is a single stable element
+    hookedVideo = v;
+    ['play', 'playing', 'seeked', 'timeupdate', 'loadedmetadata'].forEach(function (ev) {
+      v.addEventListener(ev, function () { syncFromVideo(v); });
+    });
+    ['pause', 'ended'].forEach(function (ev) {
+      v.addEventListener(ev, function () {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        syncPlayhead(v.currentTime);
+      });
+    });
+  }
+
   function render(data) {
     clearView();
     buildPanel();
+    curData = data;
+    curTimes = data.points.map(function (p) { return p[0]; });
     var stats = document.getElementById('tel-stats');
     if (stats) {
       stats.innerHTML =
+        '<span id="tel-now" class="tel-now" title="video playhead"><b>0.0 s</b></span>' +
         '<span><b>' + fmtDur(data.duration) + '</b> duration</span>' +
         '<span><b>' + fmtDist(data.distance) + '</b> route</span>' +
         '<span><b>' + data.max_alt + ' m</b> max alt</span>' +
@@ -220,6 +322,13 @@
     }
     drawMap(data);
     drawChart(data);
+    hookPlayer();
+    var v = document.getElementById('player');
+    syncPlayhead(v ? v.currentTime : 0);
+    requestAnimationFrame(function () {
+      var vv = document.getElementById('player');
+      syncPlayhead(vv ? vv.currentTime : 0);
+    });
   }
 
   function showFor(name) {
@@ -260,9 +369,17 @@
   }, true);
 
   // Fallback: react whenever the modal title changes (covers keyboard/UI paths).
+  window.addEventListener('resize', function () {
+    if (!curData || !chart || !curTimes) return;
+    var v = document.getElementById('player');
+    var p = curData.points[nearestIndex(curTimes, v ? v.currentTime : 0)];
+    if (p) positionPlayhead(p[0], p);
+  });
+
   function watchTitle() {
     var t = document.getElementById('modal-title');
     if (!t) { setTimeout(watchTitle, 500); return; }
+    hookPlayer();
     new MutationObserver(function () {
       var modal = document.getElementById('modal');
       if (modal && !modal.classList.contains('hidden')) {
