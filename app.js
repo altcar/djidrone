@@ -267,12 +267,12 @@
       var idx = a.order[i], col = i % a.cols, row = Math.floor(i / a.cols);
       var ang = (col - (a.cols - 1) / 2) * colStep;
       var y = ((a.rows - 1) / 2 - row) * h * rowStep;
-      var mat = new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.DoubleSide });
-      var plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      let mat = new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.DoubleSide });
+      let plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
       plane.position.set(R * Math.sin(ang), y, -R * Math.cos(ang));
       plane.rotation.y = -ang;
       frameGroup.add(plane);
-      var isFirst = (i === 0);
+      let isFirst = (i === 0);
       loader.load(set.frames[idx], function (t) {
         if (THREE.sRGBEncoding) t.encoding = THREE.sRGBEncoding;
         t.anisotropy = renderer.capabilities.getMaxAnisotropy();
