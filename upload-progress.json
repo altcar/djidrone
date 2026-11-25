@@ -3,8 +3,8 @@
   "phase": "verifying",
   "percent": 0.0,
   "percent_by_files": 0.0,
-  "updated": "2026-11-25T17:24:34",
-  "elapsed_s": 10021,
+  "updated": "2026-11-25T17:26:36",
+  "elapsed_s": 10143,
   "process_alive": true,
   "process_rss_bytes": 1236959232,
   "current_file": "hashing after upload",
@@ -18,5 +18,5 @@
   "committed_files": 0,
   "uploaded_files": 0,
   "committed_videos": 0,
-  "hashed_files": 80
+  "hashed_files": 90
 }
