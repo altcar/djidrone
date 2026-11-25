@@ -32,7 +32,7 @@
   }
 
   /* ---------- video gallery ---------- */
-  var videos = [], currentQuery = '', localPlayback = new Set();
+  var videos = [], currentQuery = '';
   function updateStats() {
     var days = new Set(videos.map(function (v) { return v.date; }).filter(Boolean)).size;
     var total = videos.reduce(function (a, v) { return a + v.bytes; }, 0);
@@ -66,11 +66,6 @@
   }
   fetch('./manifest.json').then(function (r) { return r.json(); }).then(function (d) {
     videos = d.videos;
-    if (location.port === '8877') {
-      fetch('./playback-index.json').then(function (r) { return r.json(); })
-        .then(function (names) { names.forEach(function (n) { localPlayback.add(n); }); })
-        .catch(function () {});
-    }
     updateStats();
     renderVideos('');
     if (location.port !== '8877') {
@@ -96,16 +91,12 @@
     document.getElementById('modal-download').href = v.url;
     // Gated HF files cannot be streamed anonymously. On the local site, proxy
     // them through the bridge with the user's HF token (Range requests work).
+    // The dataset is gated. Stream the ORIGINAL HEVC file through the local
+    // bridge (which uses your HF key) or the online Worker (password check).
     var src = v.url;
-    if (location.port === '8877') {
-      if (localPlayback.has(v.file)) {
-        src = './playback/' + encodeURIComponent(v.file);
-      } else if (v.url.indexOf('/resolve/main/') >= 0) {
-        src = BRIDGE + '/api/video/' + v.url.split('/resolve/main/')[1];
-      }
+    if (location.port === '8877' && v.url.indexOf('/resolve/main/') >= 0) {
+      src = BRIDGE + '/api/video/' + v.url.split('/resolve/main/')[1];
     } else if (ONLINE_PROXY && v.url.indexOf('/resolve/main/') >= 0) {
-      // The Worker needs the gallery password as a Bearer token. Read the
-      // unlocked flag set by gate.js; the password itself is never stored.
       var pw = sessionStorage.getItem('djidrone_gate_password') || '';
       var auth = pw ? '?auth=' + encodeURIComponent(pw) : '';
       src = ONLINE_PROXY + '/' + v.url.split('/resolve/main/')[1] + auth;
