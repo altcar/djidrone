@@ -141,6 +141,7 @@
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x18211a);
     camera = new THREE.PerspectiveCamera(75, 1, 1, 3000);
     resize();
     window.addEventListener('resize', resize);
@@ -275,6 +276,37 @@
     return { cols: cols, order: order.slice(), rows: Math.ceil(n / cols) };
   }
 
+  /* Build a spherical patch by projecting a perspective camera frame
+     (hfov x vfov, centred on yaw/pitch) onto a sphere of radius R. This keeps
+     adjacent DJI frames aligned instead of showing flat-plane distortion. */
+  function sphericalPatchGeometry(yaw, pitch, hfov, vfov, R, su, sv, uv0u, uv1u, uv0v, uv1v) {
+    var pos = [], uv = [], idx = [];
+    var ax = new THREE.Vector3(1, 0, 0), ay = new THREE.Vector3(0, 1, 0);
+    var tx = Math.tan(hfov / 2), ty = Math.tan(vfov / 2);
+    for (var j = 0; j <= sv; j++) {
+      var v = j / sv;
+      for (var i = 0; i <= su; i++) {
+        var u = i / su;
+        var d = new THREE.Vector3((u - 0.5) * 2 * tx, (0.5 - v) * 2 * ty, -1).normalize();
+        d.applyAxisAngle(ax, pitch).applyAxisAngle(ay, yaw);
+        pos.push(d.x * R, d.y * R, d.z * R);
+        // Sample only the central part of the frame that maps to this slot.
+        uv.push(uv0u + u * (uv1u - uv0u), 1 - (uv0v + v * (uv1v - uv0v)));
+      }
+    }
+    for (var jj = 0; jj < sv; jj++) {
+      for (var ii = 0; ii < su; ii++) {
+        var a = jj * (su + 1) + ii, b = a + 1, c = a + su + 1, d2 = c + 1;
+        idx.push(a, c, b, b, c, d2);
+      }
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    return g;
+  }
+
   /* Feather the edges of a frame so overlapping planes blend into one another,
      the way adjacent shots blend in the DJI sphere stitching. */
   function featherTexture(url, cb) {
@@ -288,14 +320,14 @@
       x.globalCompositeOperation = "destination-in";
       var gx = x.createLinearGradient(0, 0, c.width, 0);
       gx.addColorStop(0, "rgba(0,0,0,0)");
-      gx.addColorStop(0.12, "rgba(0,0,0,1)");
-      gx.addColorStop(0.88, "rgba(0,0,0,1)");
+      gx.addColorStop(0.02, "rgba(0,0,0,1)");
+      gx.addColorStop(0.98, "rgba(0,0,0,1)");
       gx.addColorStop(1, "rgba(0,0,0,0)");
       x.fillStyle = gx; x.fillRect(0, 0, c.width, c.height);
       var gy = x.createLinearGradient(0, 0, 0, c.height);
       gy.addColorStop(0, "rgba(0,0,0,0)");
-      gy.addColorStop(0.15, "rgba(0,0,0,1)");
-      gy.addColorStop(0.85, "rgba(0,0,0,1)");
+      gy.addColorStop(0.03, "rgba(0,0,0,1)");
+      gy.addColorStop(0.97, "rgba(0,0,0,1)");
       gy.addColorStop(1, "rgba(0,0,0,0)");
       x.fillStyle = gy; x.fillRect(0, 0, c.width, c.height);
       var t = new THREE.CanvasTexture(c);
@@ -313,11 +345,18 @@
     frameGroup = new THREE.Group();
     var n = set.frames.length, a = arrangementFor(set.id, n);
     var R = 500;
-    // ~36 degrees per column and ~75 degree frame FOV gives ~35-40% overlap,
-    // matching the overlap in DJI's pre-stitched sphere panoramas.
-    var colStep = 0.63, rowAngle = 0.7;
-    var w = 2 * R * Math.tan(0.61);
-    var h = w / ((set.size && set.size[0] / set.size[1]) || 1.333);
+    // Measured from the actual SIFT overlaps: ~44.3 deg per column and
+    // ~38.5 deg per row. Row pitches: sky, horizon, ground, steep down.
+    var colStep = 0.773;
+    var pitches;
+    if (a.rows >= 4) pitches = [0.672, 0.0, -0.672, -1.344];
+    else if (a.rows === 3) pitches = [0.672, 0.0, -0.672];
+    else pitches = [0.672, 0.0, -0.672, -1.344];
+    var aspect = (set.size && set.size[0] / set.size[1]) || 1.333;
+    var frameHfov = 1.274; // ~73 deg horizontal camera FOV
+    var w = 2 * R * Math.tan(frameHfov / 2);
+    var h = w / aspect;
+    var loader = new THREE.TextureLoader();
     var rowCount = {};
     for (var r = 0; r < n; r++) {
       var rr = Math.floor(r / a.cols);
@@ -325,28 +364,31 @@
     }
     for (var i = 0; i < n; i++) {
       var idx = a.order[i], col = i % a.cols, row = Math.floor(i / a.cols);
-      var ang = (col - (rowCount[row] - 1) / 2) * colStep;
-      var y = ((a.rows - 1) / 2 - row) * R * Math.tan(rowAngle);
+      // Positive yaw looks left, so column 0 gets the largest positive yaw.
+      var ang = ((rowCount[row] - 1) / 2 - col) * colStep;
+      var rowPitch = pitches[row] !== undefined ? pitches[row] : (0.70 - row * 0.45);
+      var y = R * Math.tan(rowPitch);
       let mat = new THREE.MeshBasicMaterial({
         color: 0x555555, side: THREE.DoubleSide, transparent: true, depthWrite: false
       });
       let plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
       plane.position.set(R * Math.sin(ang), y, -R * Math.cos(ang));
       plane.rotation.y = -ang;
-      plane.renderOrder = row;
       frameGroup.add(plane);
+      let isFirst = (i === 0);
       featherTexture(set.frames[idx], function (t) {
         if (t) { mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; }
+        if (isFirst) document.getElementById('loading').classList.add('hidden');
       });
     }
     scene.add(frameGroup);
     document.getElementById('loading').classList.add('hidden');
-    limitYaw = (a.cols - 1) / 2 * colStep + 0.5;
-    limitPitch = ((a.rows - 1) / 2) * Math.tan(rowAngle) + 0.3;
+    limitYaw = (a.cols - 1) / 2 * colStep + 0.35;
+    limitPitch = Math.max.apply(null, pitches.map(Math.abs)) + 0.3;
     wantYaw = yaw = 0; wantPitch = pitch = 0;
     camera.fov = 75; camera.updateProjectionMatrix();
     document.getElementById('pano-label').textContent =
-      set.id.replace('_', ' / ') + ' — ' + a.cols + '×' + a.rows + ' draggable frame wall (' + n + ' shots)';
+      set.id.replace('_', ' / ') + ' — ' + a.cols + '×' + a.rows + ' spherical frame panorama (' + n + ' shots)';
     document.getElementById('pano-source').innerHTML =
       'Arrangement saved in <a href="https://gist.github.com/altcar/02bb92e7fe0043b587ee0be1f10afae4" target="_blank" rel="noopener">this gist</a> · originals: <a href="' + set.hfFolder + '" target="_blank" rel="noopener">PANORAMA/' + set.id + '/</a>';
     if (puzzleOpen) renderPuzzle();
