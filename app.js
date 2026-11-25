@@ -65,6 +65,10 @@
     videos = d.videos;
     updateStats();
     renderVideos('');
+    if (location.port !== '8877') {
+      document.getElementById('media-note').textContent =
+        'Note: the Hugging Face dataset is gated, so video streaming requires the local bridge at http://localhost:8877/ (which uses your HF key).';
+    }
     refreshFromHF();
   }).catch(function (e) { console.error(e); });
   var searchTimer;
@@ -82,7 +86,13 @@
     document.getElementById('modal-meta').textContent =
       fmtTime(v.duration) + ' · ' + fmtBytes(v.bytes) + ' · ' + (v.date || 'new');
     document.getElementById('modal-download').href = v.url;
-    player.src = v.url;
+    // Gated HF files cannot be streamed anonymously. On the local site, proxy
+    // them through the bridge with the user's HF token (Range requests work).
+    var src = v.url;
+    if (location.port === '8877' && v.url.indexOf('/resolve/main/') >= 0) {
+      src = BRIDGE + '/api/video/' + v.url.split('/resolve/main/')[1];
+    }
+    player.src = src;
     player.load();
     document.getElementById('modal').classList.remove('hidden');
   }
