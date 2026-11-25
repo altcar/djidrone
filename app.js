@@ -5,6 +5,9 @@
   var HF = 'https://huggingface.co/datasets/shalevlau/djidrone';
   var HF_BASE = HF + '/resolve/main/';
   var BRIDGE = 'http://localhost:8877';
+  // Online proxy: Cloudflare Worker holds the HF token and enforces the
+  // gallery password. Set by tools/setup_proxy.js after deployment.
+  var ONLINE_PROXY = (window.DJIDRONE_PROXY || '').replace(/\/$/, '');
 
   /* ---------- tabs ---------- */
   document.querySelectorAll('.tab[data-tab]').forEach(function (btn) {
@@ -100,6 +103,12 @@
       } else if (v.url.indexOf('/resolve/main/') >= 0) {
         src = BRIDGE + '/api/video/' + v.url.split('/resolve/main/')[1];
       }
+    } else if (ONLINE_PROXY && v.url.indexOf('/resolve/main/') >= 0) {
+      // The Worker needs the gallery password as a Bearer token. Read the
+      // unlocked flag set by gate.js; the password itself is never stored.
+      var pw = sessionStorage.getItem('djidrone_gate_password') || '';
+      var auth = pw ? '?auth=' + encodeURIComponent(pw) : '';
+      src = ONLINE_PROXY + '/' + v.url.split('/resolve/main/')[1] + auth;
     }
     player.src = src;
     player.load();

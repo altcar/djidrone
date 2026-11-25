@@ -30,16 +30,22 @@
     try { return sessionStorage.getItem(SESSION_KEY) === '1'; }
     catch (e) { return false; }
   }
-  function grant(remember) {
+  function grant(remember, password) {
     try {
+      // Keep the password only in sessionStorage so the online proxy can
+      // authenticate <video> requests (it cannot send custom headers).
+      if (password) sessionStorage.setItem('djidrone_gate_password', password);
       sessionStorage.setItem(SESSION_KEY, '1');
       if (remember) localStorage.setItem(REMEMBER_KEY, String(Date.now() + 12 * 3600 * 1000));
       else localStorage.removeItem(REMEMBER_KEY);
     } catch (e) { /* private mode: still unlock for this page view */ }
   }
   function revoke() {
-    try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(REMEMBER_KEY); }
-    catch (e) {}
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem('djidrone_gate_password');
+      localStorage.removeItem(REMEMBER_KEY);
+    } catch (e) {}
   }
 
   function show() {
@@ -107,7 +113,7 @@
         e.preventDefault();
         if (errEl) errEl.textContent = 'Checking…';
         check(input.value).then(function () {
-          grant(rememberEl && rememberEl.checked);
+          grant(rememberEl && rememberEl.checked, input.value);
           hide();
         }).catch(function (err) {
           if (errEl) errEl.textContent = err.message || 'Could not verify password.';
