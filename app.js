@@ -104,6 +104,15 @@
   var limitYaw = null, limitPitch = 1.2;
   var dragging = false, lastX = 0, lastY = 0;
   var arrangements = {}, frameIndex = {}, puzzleOrder = [], puzzleCols = 5, puzzleOpen = false;
+  /* DJI 180-degree sets are 3 rows x 7 columns (zig-zag from the centre column).
+     This 17-shot set is a shorter capture: overlap analysis shows a 5-column,
+     3-row grid plus two steep up/down shots. Frame order is row-major. */
+  var DJI_DEFAULTS = {
+    '001_0005': {
+      cols: 5, rows: 4,
+      order: [2, 4, 9, 10, 15,   0, 5, 8, 11, 14,   1, 6, 16, 12, 13,   3, 7]
+    }
+  };
 
   function loadArrangements() {
     try { var a = JSON.parse(localStorage.getItem('djidrone-arrangements') || '{}'); Object.assign(arrangements, a); } catch (e) {}
@@ -247,13 +256,19 @@
     }
   }
 
+  function defaultArrangement(id, n) {
+    var d = DJI_DEFAULTS[id];
+    if (d && d.order.length === n) return { cols: d.cols, rows: Math.ceil(n / d.cols), order: d.order.slice() };
+    return { cols: n >= 17 ? 5 : (n <= 9 ? 3 : 4), rows: 0, order: Array.from({ length: n }, function (_, i) { return i; }) };
+  }
   function arrangementFor(id, n) {
+    var d = defaultArrangement(id, n);
     var a = arrangements[id] || {};
-    var cols = Math.max(1, Math.min(10, a.cols || (n >= 17 ? 5 : (n <= 9 ? 3 : 4))));
+    var cols = Math.max(1, Math.min(10, a.cols || d.cols));
     var order = a.order;
     var ok = Array.isArray(order) && order.length === n &&
       Array.from({ length: n }, function (_, i) { return i; }).every(function (i) { return order.indexOf(i) >= 0; });
-    if (!ok) order = Array.from({ length: n }, function (_, i) { return i; });
+    if (!ok) order = d.order;
     return { cols: cols, order: order.slice(), rows: Math.ceil(n / cols) };
   }
 
@@ -267,9 +282,15 @@
     var w = 2 * R * Math.tan(colStep / 2) * 1.02;
     var h = w / ((set.size && set.size[0] / set.size[1]) || 1.333);
     var loader = new THREE.TextureLoader();
+    var rowCount = {};
+    for (var r = 0; r < n; r++) {
+      var rr = Math.floor(r / a.cols);
+      rowCount[rr] = (rowCount[rr] || 0) + 1;
+    }
     for (var i = 0; i < n; i++) {
       var idx = a.order[i], col = i % a.cols, row = Math.floor(i / a.cols);
-      var ang = (col - (a.cols - 1) / 2) * colStep;
+      // Centre shorter rows (the two steep up/down shots) under the main grid.
+      var ang = (col - (rowCount[row] - 1) / 2) * colStep;
       var y = ((a.rows - 1) / 2 - row) * h * rowStep;
       let mat = new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.DoubleSide });
       let plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
@@ -392,8 +413,9 @@
   function resetPuzzle() {
     if (!current) return;
     var n = current.frames.length;
-    puzzleOrder = Array.from({ length: n }, function (_, i) { return i; });
-    puzzleCols = n >= 17 ? 5 : (n <= 9 ? 3 : 4);
+    var d = defaultArrangement(current.id, n);
+    puzzleOrder = d.order.slice();
+    puzzleCols = d.cols;
     document.getElementById('puzzle-cols').value = puzzleCols;
     renderPuzzle();
   }

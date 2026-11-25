@@ -1,15 +1,15 @@
 {
-  "status": "stopped",
-  "phase": "starting",
+  "status": "uploading",
+  "phase": "hashing",
   "percent": 0.0,
   "percent_by_files": 0.0,
-  "updated": "2026-11-25T10:31:28",
-  "elapsed_s": 0,
-  "process_alive": false,
-  "process_rss_bytes": 0,
-  "current_file": null,
+  "updated": "2026-11-25T10:33:10",
+  "elapsed_s": 103,
+  "process_alive": true,
+  "process_rss_bytes": 110960640,
+  "current_file": "dji srt/DJI_20250703163149_0002_D.JPG",
   "uploaded_bytes": 0,
-  "total_bytes": 219488799408,
+  "total_bytes": 220466613186,
   "speed_bps": 0,
   "eta_s": null,
   "xet_cache_bytes": 1759177720,
@@ -17,5 +17,5 @@
   "total_videos": 119,
   "committed_files": 0,
   "committed_videos": 0,
-  "hashed_files": 0
+  "hashed_files": 200
 }

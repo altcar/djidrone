@@ -26,4 +26,21 @@ is a derived copy generated for the web.
   from DJI's stitched JPEG.
 - `001_0005` has 17 shots, not a standard 25-shot Sphere capture and has no DJI
   stitched JPEG. A naive OpenCV stitch leaves large holes, so the site presents its
-  source frames as a draggable 3D ring instead of a broken sphere.
+  source frames as a draggable 3D frame wall instead of a broken sphere.
+
+## Panorama shot layouts (researched)
+
+- **25 shots** = DJI Sphere (Mavic Air: 3 rows × 8 columns + one nadir; 8192×4096
+  equirectangular). Used for `001_0002` and `001_0081`.
+- **21 shots** = DJI 180° mode: 3 rows × 7 columns. The drone starts at the centre
+  column (middle, top, bottom), then zig-zags left column by column, then jumps to
+  the right side and zig-zags back. Documented by DJI owners and review sites.
+- **17 shots** = a shorter 180°/partial-sphere capture. Feature-overlap analysis of
+  `001_0005` resolves a **5-column × 3-row grid plus two steep up/down shots**:
+  - top row: PANO 3, 5, 10, 11, 16
+  - middle row: PANO 1, 6, 9, 12, 15
+  - bottom row: PANO 2, 7, 17, 13, 14
+  - steep shots: PANO 4 (up), PANO 8 (down)
+
+That row-major order is the default puzzle arrangement for `001_0005`, stored in
+the gist linked in `config.json`. Use **Reset order** in the puzzle to restore it.
