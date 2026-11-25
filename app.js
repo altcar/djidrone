@@ -104,13 +104,16 @@
   var limitYaw = null, limitPitch = 1.2;
   var dragging = false, lastX = 0, lastY = 0;
   var arrangements = {}, frameIndex = {}, puzzleOrder = [], puzzleCols = 5, puzzleOpen = false;
-  /* DJI 180-degree sets are 3 rows x 7 columns (zig-zag from the centre column).
-     This 17-shot set is a shorter capture: overlap analysis shows a 5-column,
-     3-row grid plus two steep up/down shots. Frame order is row-major. */
+  /* Correct DJI layout for the 17-shot set (user-supplied, row-major):
+       13  2  7  8  14
+       12  9  6  1  15
+       11 10  5  3  16
+        4 17
+     The planes overlap with feathered edges so they blend like a sphere. */
   var DJI_DEFAULTS = {
     '001_0005': {
       cols: 5, rows: 4,
-      order: [1, 6, 16, 12, 13,   0, 5, 8, 11, 14,   2, 4, 9, 10, 15,   3, 7]
+      order: [12, 1, 6, 7, 13,   11, 8, 5, 0, 14,   10, 9, 4, 2, 15,   3, 16]
     }
   };
 
@@ -272,16 +275,49 @@
     return { cols: cols, order: order.slice(), rows: Math.ceil(n / cols) };
   }
 
-  /* Frames are laid out as a 2D wall wrapped around a cylinder segment; the
-     arrangement (column count + tile order) comes from the puzzle/gist. */
+  /* Feather the edges of a frame so overlapping planes blend into one another,
+     the way adjacent shots blend in the DJI sphere stitching. */
+  function featherTexture(url, cb) {
+    var img = new Image();
+    if (url.indexOf("http") === 0 && url.indexOf(location.origin) !== 0) img.crossOrigin = "anonymous";
+    img.onload = function () {
+      var c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      var x = c.getContext("2d");
+      x.drawImage(img, 0, 0);
+      x.globalCompositeOperation = "destination-in";
+      var gx = x.createLinearGradient(0, 0, c.width, 0);
+      gx.addColorStop(0, "rgba(0,0,0,0)");
+      gx.addColorStop(0.12, "rgba(0,0,0,1)");
+      gx.addColorStop(0.88, "rgba(0,0,0,1)");
+      gx.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = gx; x.fillRect(0, 0, c.width, c.height);
+      var gy = x.createLinearGradient(0, 0, 0, c.height);
+      gy.addColorStop(0, "rgba(0,0,0,0)");
+      gy.addColorStop(0.15, "rgba(0,0,0,1)");
+      gy.addColorStop(0.85, "rgba(0,0,0,1)");
+      gy.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = gy; x.fillRect(0, 0, c.width, c.height);
+      var t = new THREE.CanvasTexture(c);
+      if (THREE.sRGBEncoding) t.encoding = THREE.sRGBEncoding;
+      cb(t);
+    };
+    img.onerror = function () { cb(null); };
+    img.src = url;
+  }
+
+  /* Frames are laid out on a cylinder segment as overlapping planes, using the
+     DJI shot order from the puzzle/gist. Edges are feathered so they blend. */
   function loadFrames(set) {
     clearScene();
     frameGroup = new THREE.Group();
     var n = set.frames.length, a = arrangementFor(set.id, n);
-    var R = 500, colStep = 0.34, rowStep = 1.15;
-    var w = 2 * R * Math.tan(colStep / 2) * 1.02;
+    var R = 500;
+    // ~36 degrees per column and ~75 degree frame FOV gives ~35-40% overlap,
+    // matching the overlap in DJI's pre-stitched sphere panoramas.
+    var colStep = 0.63, rowAngle = 0.7;
+    var w = 2 * R * Math.tan(0.61);
     var h = w / ((set.size && set.size[0] / set.size[1]) || 1.333);
-    var loader = new THREE.TextureLoader();
     var rowCount = {};
     for (var r = 0; r < n; r++) {
       var rr = Math.floor(r / a.cols);
@@ -289,26 +325,24 @@
     }
     for (var i = 0; i < n; i++) {
       var idx = a.order[i], col = i % a.cols, row = Math.floor(i / a.cols);
-      // Centre shorter rows (the two steep up/down shots) under the main grid.
       var ang = (col - (rowCount[row] - 1) / 2) * colStep;
-      var y = ((a.rows - 1) / 2 - row) * h * rowStep;
-      let mat = new THREE.MeshBasicMaterial({ color: 0x555555, side: THREE.DoubleSide });
+      var y = ((a.rows - 1) / 2 - row) * R * Math.tan(rowAngle);
+      let mat = new THREE.MeshBasicMaterial({
+        color: 0x555555, side: THREE.DoubleSide, transparent: true, depthWrite: false
+      });
       let plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
       plane.position.set(R * Math.sin(ang), y, -R * Math.cos(ang));
       plane.rotation.y = -ang;
+      plane.renderOrder = row;
       frameGroup.add(plane);
-      let isFirst = (i === 0);
-      loader.load(set.frames[idx], function (t) {
-        if (THREE.sRGBEncoding) t.encoding = THREE.sRGBEncoding;
-        t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true;
-        if (isFirst) document.getElementById('loading').classList.add('hidden');
+      featherTexture(set.frames[idx], function (t) {
+        if (t) { mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; }
       });
     }
     scene.add(frameGroup);
     document.getElementById('loading').classList.add('hidden');
-    limitYaw = (a.cols - 1) / 2 * colStep + 0.3;
-    limitPitch = Math.abs(((a.rows - 1) / 2) * h * rowStep) / R + 0.2;
+    limitYaw = (a.cols - 1) / 2 * colStep + 0.5;
+    limitPitch = ((a.rows - 1) / 2) * Math.tan(rowAngle) + 0.3;
     wantYaw = yaw = 0; wantPitch = pitch = 0;
     camera.fov = 75; camera.updateProjectionMatrix();
     document.getElementById('pano-label').textContent =
