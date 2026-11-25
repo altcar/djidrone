@@ -16,34 +16,17 @@
   {
     "id": "001_0005",
     "title": "001 / 0005",
-    "mode": "frames",
+    "mode": "sphere",
     "count": 17,
-    "file": null,
-    "frames": [
-      "pano/frames/001_0005/PANO_0001.JPG",
-      "pano/frames/001_0005/PANO_0002.JPG",
-      "pano/frames/001_0005/PANO_0003.JPG",
-      "pano/frames/001_0005/PANO_0004.JPG",
-      "pano/frames/001_0005/PANO_0005.JPG",
-      "pano/frames/001_0005/PANO_0006.JPG",
-      "pano/frames/001_0005/PANO_0007.JPG",
-      "pano/frames/001_0005/PANO_0008.JPG",
-      "pano/frames/001_0005/PANO_0009.JPG",
-      "pano/frames/001_0005/PANO_0010.JPG",
-      "pano/frames/001_0005/PANO_0011.JPG",
-      "pano/frames/001_0005/PANO_0012.JPG",
-      "pano/frames/001_0005/PANO_0013.JPG",
-      "pano/frames/001_0005/PANO_0014.JPG",
-      "pano/frames/001_0005/PANO_0015.JPG",
-      "pano/frames/001_0005/PANO_0016.JPG",
-      "pano/frames/001_0005/PANO_0017.JPG"
-    ],
+    "file": "pano/001_0005.jpg",
     "sourceFolder": "PANORAMA/001_0005/",
     "hfFolder": "https://huggingface.co/datasets/shalevlau/djidrone/tree/main/PANORAMA/001_0005",
     "size": [
-      1000,
-      750
-    ]
+      4096,
+      2406
+    ],
+    "stitched": true,
+    "source": "Hugin cpfind/autooptimiser/enblend stitch"
   },
   {
     "id": "001_0081",

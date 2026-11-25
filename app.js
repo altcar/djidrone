@@ -532,6 +532,8 @@
     };
     localStorage.setItem('djidrone-arrangements', JSON.stringify(arrangements));
     document.getElementById('puzzle-status').textContent = 'Applied locally. Click “Save to gist” to share it.';
+    // A stitched panorama is the default; applying the puzzle switches to tiles.
+    if (current.stitched) current.mode = 'frames';
     loadPano(current);
   }
   function saveArrangements() {
